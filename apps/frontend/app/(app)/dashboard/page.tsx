@@ -21,14 +21,15 @@ export default function DashboardPage() {
       <h2 className="text-2xl font-bold mb-6">Dashboard</h2>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
         <StatCard label="Total Videos" value={videos.length} />
         <StatCard label="Completed" value={videos.filter((v) => v.status === "completed").length} />
-        <StatCard label="Pending" value={videos.filter((v) => v.status === "pending").length} />
+        <StatCard label="Generating" value={videos.filter((v) => v.status === "generating").length} />
+        <StatCard label="Failed" value={videos.filter((v) => v.status === "failed").length} />
       </div>
 
-      {/* Recent Videos */}
-      <h3 className="text-lg font-semibold mb-4">Recent Videos</h3>
+      {/* Recent Completed Videos */}
+      <h3 className="text-lg font-semibold mb-4">Recently Completed</h3>
       {loading ? (
         <p className="text-gray-400">Loading...</p>
       ) : videos.length === 0 ? (
@@ -38,15 +39,23 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {videos.map((v) => (
-            <div key={v.id} className="flex items-center justify-between p-4 rounded-xl bg-gray-900 border border-gray-800">
-              <div>
-                <p className="font-medium truncate max-w-lg">{v.prompt}</p>
-                <p className="text-sm text-gray-500 mt-0.5">{v.resolution} · {v.ratio} · {v.duration}</p>
+          {videos
+            .filter((v) => v.status === "completed")
+            .slice(0, 5)
+            .map((v) => (
+              <div key={v.id} className="flex items-center justify-between p-4 rounded-xl bg-gray-900 border border-gray-800 hover:border-gray-700 transition-colors">
+                <div>
+                  <p className="font-medium truncate max-w-lg">{v.prompt}</p>
+                  <p className="text-sm text-gray-500 mt-0.5">{v.resolution} · {v.ratio} · {v.duration}</p>
+                </div>
+                <StatusBadge status={v.status} />
               </div>
-              <StatusBadge status={v.status} />
+            ))}
+          {videos.filter((v) => v.status === "completed").length === 0 && (
+            <div className="rounded-xl border border-dashed border-gray-700 p-8 text-center">
+              <p className="text-gray-400 text-sm">No completed videos yet.</p>
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>
