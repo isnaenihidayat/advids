@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const path = require("path");
 
 dotenv.config();
 
@@ -32,6 +33,8 @@ app.use("/api/assets", assetRoutes);
 app.use("/api/videos", videoRoutes);
 app.use("/api/queue", queueRoutes);
 app.use("/api/settings", settingsRoutes);
+
+app.use("/uploads", express.static(path.join(process.cwd(), "apps/backend/uploads")));
 
 app.use((err, req, res, next) => {
   console.error(err);

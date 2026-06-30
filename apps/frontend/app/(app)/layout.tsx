@@ -10,6 +10,7 @@ const nav = [
   { href: "/create", label: "Create Video", icon: "🎬" },
   { href: "/queue", label: "Queue", icon: "📋" },
   { href: "/library", label: "Library", icon: "🎥" },
+  { href: "/assets", label: "Assets", icon: "🖼️" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 

@@ -2,11 +2,18 @@
 
 import { useApi } from "@/lib/api";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const RESOLUTIONS = ["360p", "540p", "720p", "1080p"];
 const RATIOS = ["16:9", "9:16", "1:1", "4:3"];
 const DURATIONS = ["5s", "10s", "15s", "30s"];
+
+type Asset = {
+  id: string;
+  filename: string;
+  type: "product" | "model" | "background";
+  url: string;
+};
 
 export default function CreatePage() {
   const api = useApi();
@@ -20,9 +27,19 @@ export default function CreatePage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
+
+  useEffect(() => {
+    api.getAssets().then((data) => setAssets(Array.isArray(data) ? data : [])).catch(console.error);
+  }, []);
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const toggleAsset = (id: string) => {
+    setSelectedAssets((prev) => prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +47,7 @@ export default function CreatePage() {
     setError("");
     setSubmitting(true);
     try {
-      await api.createVideo(form);
+      await api.createVideo({ ...form, assetIds: selectedAssets });
       router.push("/queue");
     } catch (err: any) {
       setError(err.message);
@@ -85,6 +102,35 @@ export default function CreatePage() {
             </select>
           </div>
         </div>
+
+        {assets.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Assets (Optional)</label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {assets.map((asset) => (
+                <button
+                  key={asset.id}
+                  onClick={() => toggleAsset(asset.id)}
+                  className={`p-2 rounded-lg border-2 transition-all ${
+                    selectedAssets.includes(asset.id)
+                      ? "border-blue-500 bg-blue-900/20"
+                      : "border-gray-700 hover:border-gray-600"
+                  }`}
+                >
+                  <div className="aspect-video bg-gray-800 rounded mb-1 flex items-center justify-center overflow-hidden text-xs">
+                    {asset.url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                      <img src={asset.url} alt={asset.filename} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-gray-500">Video</span>
+                    )}
+                  </div>
+                  <p className="text-xs truncate">{asset.filename}</p>
+                  <p className="text-xs text-gray-500">{asset.type}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {error && <p className="text-red-400 text-sm">{error}</p>}
 
