@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: advids
+      POSTGRES_PASSWORD: advids_dev
+      POSTGRES_DB: advids
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U advids"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://advids:advids_dev@postgres:5432/advids
+      JWT_SECRET: dev_secret_key_change_in_production
+      CORS_ORIGIN: http://localhost:3000
+      NODE_ENV: development
+      PORT: 4000
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./apps/backend/src:/app/apps/backend/src
+      - ./apps/backend/uploads:/app/apps/backend/uploads
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: dev_nextauth_secret_change_in_production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./apps/frontend/app:/app/apps/frontend/app
+      - ./apps/frontend/lib:/app/apps/frontend/lib
+
+volumes:
+  postgres_data:
