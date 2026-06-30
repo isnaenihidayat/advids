@@ -28,6 +28,9 @@ export function useApi() {
   };
 
   return {
+    // Generic request for custom endpoints
+    request,
+
     // Videos
     getVideos: (query?: string) =>
       request(`/api/videos${query ? `?${query}` : ""}`),

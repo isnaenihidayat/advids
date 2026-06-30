@@ -5,10 +5,11 @@ import { useEffect, useState } from "react";
 
 type QueueItem = {
   id: string;
-  prompt?: string;
+  title?: string;
   status: string;
+  videoUrl?: string;
+  errorMessage?: string;
   createdAt?: string;
-  progress?: number;
 };
 
 export default function QueuePage() {
@@ -17,12 +18,46 @@ export default function QueuePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api
-      .getQueue()
-      .then((data: QueueItem[]) => setItems(Array.isArray(data) ? data : []))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []); // ponytail: keep one fetch on mount for Phase 3; upgrade to polling/websocket when real workers land.
+    fetchQueue();
+    // Poll queue every 5s
+    const interval = setInterval(fetchQueue, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchQueue = async () => {
+    try {
+      const data = await api.getQueue();
+      const queueItems = Array.isArray(data) ? data : [];
+      setItems(queueItems);
+
+      // Poll status for each video in progress
+      for (const item of queueItems) {
+        if (item.videoId && ["queued", "running", "generating"].includes(item.status)) {
+          try {
+            const status = await api.request(`/api/videos/${item.videoId}/status`);
+            setItems((prev) =>
+              prev.map((i) =>
+                i.id === item.id
+                  ? {
+                      ...i,
+                      status: status.status,
+                      videoUrl: status.videoUrl,
+                      errorMessage: status.errorMessage,
+                    }
+                  : i
+              )
+            );
+          } catch (err) {
+            console.error(`Failed to fetch status for video ${item.videoId}:`, err);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch queue:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="p-8">
@@ -38,33 +73,54 @@ export default function QueuePage() {
       ) : (
         <div className="space-y-3">
           {items.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-xl bg-gray-900 border border-gray-800 p-4"
-            >
+            <div key={item.id} className="rounded-xl bg-gray-900 border border-gray-800 p-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="font-medium">{item.prompt || "Untitled job"}</p>
+                  <p className="font-medium">{item.title || "Untitled job"}</p>
                   <p className="text-sm text-gray-500 mt-1">
-                    {item.createdAt
-                      ? new Date(item.createdAt).toLocaleString()
-                      : "Unknown time"}
+                    {item.createdAt ? new Date(item.createdAt).toLocaleString() : "Unknown time"}
                   </p>
                 </div>
                 <StatusBadge status={item.status} />
               </div>
 
-              {typeof item.progress === "number" && (
+              {/* Progress bar for in-progress items */}
+              {["queued", "running", "generating"].includes(item.status) && (
                 <div className="mt-4">
                   <div className="h-2 rounded-full bg-gray-800 overflow-hidden">
                     <div
-                      className="h-full bg-blue-500"
-                      style={{ width: `${Math.max(0, Math.min(100, item.progress))}%` }}
+                      className="h-full bg-blue-500 transition-all"
+                      style={{
+                        width:
+                          item.status === "queued"
+                            ? "25%"
+                            : item.status === "running"
+                              ? "50%"
+                              : item.status === "generating"
+                                ? "75%"
+                                : "100%",
+                      }}
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">{item.progress}%</p>
                 </div>
               )}
+
+              {/* Completed video link */}
+              {item.status === "completed" && item.videoUrl && (
+                <div className="mt-3">
+                  <a
+                    href={item.videoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:underline text-sm"
+                  >
+                    Download Video
+                  </a>
+                </div>
+              )}
+
+              {/* Error message */}
+              {item.errorMessage && <p className="text-sm text-red-400 mt-2">Error: {item.errorMessage}</p>}
             </div>
           ))}
         </div>
@@ -78,6 +134,7 @@ function StatusBadge({ status }: { status: string }) {
     completed: "bg-green-900 text-green-300",
     failed: "bg-red-900 text-red-300",
     generating: "bg-yellow-900 text-yellow-300",
+    running: "bg-yellow-900 text-yellow-300",
     pending: "bg-gray-800 text-gray-300",
     queued: "bg-blue-900 text-blue-300",
   };

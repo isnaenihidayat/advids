@@ -10,6 +10,7 @@ const assetRoutes = require("./routes/assets");
 const videoRoutes = require("./routes/videos");
 const queueRoutes = require("./routes/queue");
 const settingsRoutes = require("./routes/settings");
+const { startWorker } = require("./services/worker");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -39,4 +40,11 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`Backend running at http://localhost:${PORT}`);
+
+  // Wire worker trigger into routes (so POST /api/videos can kick the worker)
+  if (typeof videoRoutes?.setWorkerTrigger === "function") {
+    videoRoutes.setWorkerTrigger(startWorker);
+  }
+
+  startWorker();
 });

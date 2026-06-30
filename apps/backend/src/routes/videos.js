@@ -5,6 +5,11 @@ const { authMiddleware } = require("../middleware/auth");
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Lazy import to avoid circular dep; worker is started in index.js
+let _triggerWorker = null;
+function setWorkerTrigger(fn) { _triggerWorker = fn; }
+module.exports.setWorkerTrigger = setWorkerTrigger;
+
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const { search, status } = req.query;
@@ -38,6 +43,28 @@ router.get("/:id", authMiddleware, async (req, res) => {
   }
 });
 
+router.get("/:id/status", authMiddleware, async (req, res) => {
+  try {
+    const video = await prisma.video.findFirst({
+      where: { id: req.params.id, userId: req.user.id },
+    });
+    if (!video) {
+      return res.status(404).json({ error: "Video not found" });
+    }
+    res.json({
+      id: video.id,
+      status: video.status,
+      videoUrl: video.videoUrl,
+      errorMessage: video.errorMessage,
+      jobId: video.jobId,
+      completedAt: video.completedAt,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch video status" });
+  }
+});
+
 router.post("/", authMiddleware, async (req, res) => {
   try {
     const { prompt, resolution, ratio, aiModel, duration, assetIds, recipeData } = req.body;
@@ -58,6 +85,18 @@ router.post("/", authMiddleware, async (req, res) => {
         recipeData: recipeData || {},
       },
     });
+
+    // Enqueue for generation
+    await prisma.queueItem.create({
+      data: {
+        userId: req.user.id,
+        title: prompt.slice(0, 80),
+        payloadJson: { prompt, resolution, ratio, aiModel, duration, assetIds },
+        videoId: video.id,
+      },
+    });
+
+    if (_triggerWorker) _triggerWorker();
 
     res.status(201).json(video);
   } catch (err) {
