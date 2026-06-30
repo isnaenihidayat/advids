@@ -31,8 +31,14 @@ const handler = NextAuth({
             return null;
           }
 
-          const user = await res.json();
-          return user;
+          const data = await res.json();
+          // Return user with backend token attached
+          return {
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.name,
+            backendToken: data.token,
+          };
         } catch (err) {
           console.error("Auth error:", err);
           return null;
@@ -45,14 +51,19 @@ const handler = NextAuth({
       if (user) {
         token.id = user.id;
         token.email = user.email;
+        token.name = user.name;
+        token.backendToken = (user as any).backendToken;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
+        (session.user as any).id = token.id as string;
         session.user.email = token.email as string;
+        session.user.name = token.name as string;
       }
+      // Expose backend token to client for API calls
+      (session as any).backendToken = token.backendToken;
       return session;
     },
   },
