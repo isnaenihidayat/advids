@@ -11,6 +11,7 @@ const nav = [
   { href: "/queue", label: "Queue", icon: "📋" },
   { href: "/library", label: "Library", icon: "🎥" },
   { href: "/assets", label: "Assets", icon: "🖼️" },
+  { href: "/admin", label: "Admin", icon: "🛡️" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 

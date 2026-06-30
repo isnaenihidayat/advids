@@ -11,6 +11,7 @@ const assetRoutes = require("./routes/assets");
 const videoRoutes = require("./routes/videos");
 const queueRoutes = require("./routes/queue");
 const settingsRoutes = require("./routes/settings");
+const adminRoutes = require("./routes/admin");
 const { startWorker } = require("./services/worker");
 
 const app = express();
@@ -33,6 +34,7 @@ app.use("/api/assets", assetRoutes);
 app.use("/api/videos", videoRoutes);
 app.use("/api/queue", queueRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.use("/uploads", express.static(path.join(process.cwd(), "apps/backend/uploads")));
 

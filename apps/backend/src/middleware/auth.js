@@ -24,4 +24,13 @@ const generateToken = (user) => {
   );
 };
 
-module.exports = { authMiddleware, generateToken };
+const adminMiddleware = (req, res, next) => {
+  authMiddleware(req, res, () => {
+    if (req.user?.role !== "ADMIN") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    next();
+  });
+};
+
+module.exports = { authMiddleware, adminMiddleware, generateToken };
