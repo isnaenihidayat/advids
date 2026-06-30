@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AssetType {
+  product
+  model
+  background
+}
+
+enum VideoStatus {
+  pending
+  generating
+  completed
+  failed
+}
+
+enum QueueItemStatus {
+  queued
+  running
+  paused
+  completed
+  failed
+}
+
+model User {
+  id         String      @id @default(cuid())
+  email      String      @unique
+  password   String
+  name       String?
+  role       Role        @default(USER)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  settings   Settings?
+  assets     Asset[]
+  videos     Video[]
+  queueItems QueueItem[]
+}
+
+model Settings {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiKey            String   @default("")
+  apiBaseUrl        String   @default("https://ark.ap-southeast.bytepluses.com/api/v3")
+  defaultResolution String   @default("1080p")
+  defaultRatio      String   @default("9:16")
+  defaultModel      String   @default("seedance-2.0")
+  defaultDuration   String   @default("5s")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Asset {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      AssetType
+  filename  String
+  filepath  String
+  filesize  Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  @@index([userId, type])
+}
+
+model Video {
+  id             String      @id @default(cuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt         String
+  resolution     String      @default("1080p")
+  ratio          String      @default("9:16")
+  aiModel        String      @default("seedance-2.0")
+  duration       String      @default("5s")
+  status         VideoStatus @default(pending)
+  jobId          String?
+  videoUrl       String?
+  localVideoPath String?
+  thumbnailPath  String?
+  errorMessage   String?
+  assetIds       Json        @default("[]")
+  recipeData     Json        @default("{}")
+  createdAt      DateTime    @default(now())
+  completedAt    DateTime?
+  queueItems     QueueItem[]
+
+  @@index([userId, status])
+  @@index([createdAt])
+}
+
+model QueueItem {
+  id           String          @id @default(cuid())
+  userId       String
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String          @default("Untitled video")
+  status       QueueItemStatus @default(queued)
+  payloadJson  Json
+  videoId      String?
+  video        Video?          @relation(fields: [videoId], references: [id], onDelete: SetNull)
+  errorMessage String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  @@index([userId, status])
+  @@index([createdAt])
+}
